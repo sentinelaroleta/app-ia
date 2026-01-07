@@ -3,54 +3,58 @@ import os
 from groq import Groq
 
 # Configuração da página
-st.set_page_config(page_title="Meu Chatbot IA")
+st.set_page_config(page_title="Sentinela IA", page_icon="🤖")
 
-st.title("🤖 Chatbot Independente (Llama 3)")
+st.title("🤖 Sentinela (Llama 3.3)")
 
-# Pega a chave que vamos configurar no Render depois
+# Pega a chave da API
 api_key = os.environ.get("GROQ_API_KEY")
 
-# Se não achar a chave, avisa o usuário
 if not api_key:
-    st.warning("⚠️ Chave de API não encontrada. Configure no painel do Render.")
+    st.error("⚠️ Chave de API não encontrada. Configure no Render.")
     st.stop()
 
-# Conecta na Groq
 client = Groq(api_key=api_key)
 
-# Cria a memória do chat
+# Inicializa histórico
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Mostra as mensagens antigas na tela
+# Mostra histórico
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Caixa de texto para você digitar
-if prompt := st.chat_input("Escreva sua mensagem..."):
-    # 1. Mostra o que você digitou
+# --- A MÁGICA ACONTECE AQUI ---
+def gerar_resposta_limpa(chat_completion):
+    """Filtra o código feio e entrega só o texto"""
+    for chunk in chat_completion:
+        if chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content
+
+if prompt := st.chat_input("Digite sua mensagem..."):
+    # Mostra mensagem do usuário
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # 2. Manda para a IA e pega a resposta
+    # Chama a IA
     try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=st.session_state.messages,
-            temperature=0.7,
-            max_tokens=1024,
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": m["role"], "content": m["content"]}
+                for m in st.session_state.messages
+            ],
+            model="llama-3.3-70b-versatile", # Modelo Novo
             stream=True,
         )
 
-        # 3. Mostra a resposta da IA digitando em tempo real
+        # Mostra resposta limpa
         with st.chat_message("assistant"):
-            response = st.write_stream(completion)
-        
-        # 4. Guarda a resposta na memória
+            # Aqui usamos a função de limpeza
+            response = st.write_stream(gerar_resposta_limpa(chat_completion))
+            
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     except Exception as e:
-
-        st.error(f"Erro ao conectar: {e}")
+        st.error(f"Erro: {e}")
