@@ -37,7 +37,7 @@ if prompt := st.chat_input("Escreva sua mensagem..."):
     # 2. Manda para a IA e pega a resposta
     try:
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.3-70b-versatile",
             messages=st.session_state.messages,
             temperature=0.7,
             max_tokens=1024,
@@ -52,4 +52,5 @@ if prompt := st.chat_input("Escreva sua mensagem..."):
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     except Exception as e:
+
         st.error(f"Erro ao conectar: {e}")
